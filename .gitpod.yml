@@ -1,0 +1,18 @@
+image:
+  file: .gitpod.dockerfile
+
+tasks:
+  - init: psql -c '\x' -c 'CREATE DATABASE nordioinlove;'
+
+  - name: Run
+    command: ./mvnw spring-boot:run;
+    openMode: split-right
+
+vscode:
+  extensions:
+    - redhat.java
+    - vscjava.vscode-java-debug
+    - vscjava.vscode-java-test
+    - pivotal.vscode-spring-boot
+    
+

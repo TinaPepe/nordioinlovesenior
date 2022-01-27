@@ -1,0 +1,5 @@
+{
+  "name": "Nordio in love",
+  "description": "Nordio in love.",
+  "addons": [ "heroku-postgresql" ]
+}
