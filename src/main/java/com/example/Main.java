@@ -64,7 +64,7 @@ public class Main {
       System.out.println("-------- MIGRATE --------- ");
       try (Connection connection = dataSource.getConnection()) {
         Statement stmt = connection.createStatement();
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS student (id uuid, name varchar, gender varchar, school_class varchar, gender_preference varchar, address varchar, preferences varchar, created_on timestamp DEFAULT NOW());");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS student (id uuid, name varchar, preferences varchar, created_on timestamp DEFAULT NOW());");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS answer (student_id uuid, question varchar, answer varchar, created_on timestamp DEFAULT NOW());");
         stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_student ON student(id)");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_student_name ON student(name)");
@@ -84,18 +84,6 @@ public class Main {
   String createStudent(@RequestBody MultiValueMap<String, String> formData, HttpServletRequest request) throws Exception {
 
     String token = readToken(request);
-
-    List<String> genderPreferences = new ArrayList<String>();
-      
-    if (formData.get("ragazzo") != null) {
-      genderPreferences.add("ragazzo");
-    }
-    if (formData.get("ragazza") != null) {
-      genderPreferences.add("ragazza");
-    }
-    if (formData.get("nonbinary") != null) {
-      genderPreferences.add("nonbinary");
-    }
   
     try (Connection connection = dataSource.getConnection()) {    
       PreparedStatement select = connection.prepareStatement("select id from student where name =?");
@@ -106,33 +94,17 @@ public class Main {
        
         if (!id.toString().equals(token)) {
            return "{ \"error\": \"" + formData.get("name").get(0) + " ha già partecipato!\"}";
-        } else {
-          PreparedStatement update = connection.prepareStatement("update student set gender = ?, school_class = ?, gender_preference = ?, address = ? where id = ?");
-      
-          update.setString(1, formData.get("gender").get(0));
-          update.setString(2, formData.get("school_class").get(0));
-          update.setString(3, genderPreferences.stream().map(String::valueOf).collect(Collectors.joining(",")));
-          update.setString(4, formData.get("address").get(0));
-          update.setObject(5, id);
-          
-          update.executeUpdate();
-
-          return "{ \"redirectUrl\": \"/questions\", \"token\": \"" + id + "\"}";
         }
       }
     
    
-      PreparedStatement insert = connection.prepareStatement("insert into student (id, name, gender, school_class, gender_preference, address) values (?, ?, ?, ?, ?, ?)");
+      PreparedStatement insert = connection.prepareStatement("insert into student (id, name) values (?, ?)");
       
       UUID id = java.util.UUID.randomUUID();
 
       insert.setObject(1, id);
       insert.setString(2, String.valueOf(formData.get("name").get(0)));
-      insert.setString(3, formData.get("gender").get(0));
-      insert.setString(4, formData.get("school_class").get(0));
-      insert.setString(5, genderPreferences.stream().map(String::valueOf).collect(Collectors.joining(",")));
-      insert.setString(6, formData.get("address").get(0));
-      
+       
       insert.executeUpdate();
 
       return "{ \"redirectUrl\": \"/questions\", \"token\": \"" + id + "\"}";
@@ -249,12 +221,6 @@ public class Main {
 
 
     List<Score> scores = new ArrayList<>();
-
-    String[] gps = student.genderPreference.split(",");
-    List<String> genderPreference = new ArrayList<>();
-    for(String gp : gps) {
-      genderPreference.add(gp);
-    }
        
     List<UUID> candidateList = new ArrayList<UUID>();
     for(UUID candidateId : candidates.keySet()) {
@@ -267,7 +233,7 @@ public class Main {
       Student candidate = candidates.get(candidateId);
       System.out.println(candidate.id + " has gender " + candidate.gender);
 
-      if(candidate.id != student.id && (genderPreference.contains(candidate.gender) || genderPreference.size() == 0)) {
+      if(candidate.id != student.id) {
      
         Score score = new Score();
 
@@ -309,7 +275,7 @@ public class Main {
     List<Student> students = new ArrayList<Student>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name, gender, school_class, gender_preference, address from student order by created_on";
+      String query = "SELECT id, name from student order by created_on";
       String answersQuery = "SELECT question, answer from answer where student_id = ?";
       try (Statement stmt = connection.createStatement()) {
         PreparedStatement answersStmt = connection.prepareStatement(answersQuery);
@@ -318,10 +284,7 @@ public class Main {
           Student student = new Student();
           student.id = (UUID)rs.getObject("id");
           student.name = rs.getString("name");
-          student.schoolClass = rs.getString("school_class");
-          student.gender = rs.getString("gender");
-          student.genderPreference = rs.getString("gender_preference");
-
+       
           answersStmt.setObject(1, student.id);
 
           ResultSet answersRs = answersStmt.executeQuery();
@@ -358,18 +321,14 @@ public class Main {
     List<Student> students = new ArrayList<Student>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name, gender, school_class, gender_preference, address, preferences from student order by school_class, name";
+      String query = "SELECT id, name, preferences from student order by name";
       try (Statement stmt = connection.createStatement()) {
         ResultSet rs = stmt.executeQuery(query);
         while (rs.next()) {
           Student student = new Student();
           student.id = (UUID)rs.getObject("id");
           student.name = rs.getString("name");
-          student.schoolClass = rs.getString("school_class");
-          student.gender = rs.getString("gender");
-          student.genderPreference = rs.getString("gender_preference");
           student.preferences = rs.getString("preferences");
-          student.address = rs.getString("address");
           if (student.preferences == null) {
             student.preferences = "?";
           }

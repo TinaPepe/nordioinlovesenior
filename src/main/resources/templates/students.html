@@ -6,11 +6,7 @@
   <table class="container">
     <tr th:each="student : ${students}">
       <td th:text="${student.id}"/>
-      <td th:text="${student.schoolClass}"/>
       <td th:text="${student.name}"/>
-      <td th:text="${student.address}"/>
-      <!--<td th:text="${student.gender}"/>
-      <td th:text="${student.genderPreference}"/>-->
       <td th:text="${student.preferences}"/>
     </tr>
   </table>
