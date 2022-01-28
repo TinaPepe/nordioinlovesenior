@@ -53,7 +53,7 @@ public class Main {
  
   @RequestMapping("/")
   String index() {
-    // migrate();
+    migrate();
     
     return "index";
   }
