@@ -1,5 +1,5 @@
 {
-  "name": "Nordio in love",
-  "description": "Nordio in love.",
+  "name": "Nordio in love Senior",
+  "description": "Nordio in love Senior.",
   "addons": [ "heroku-postgresql" ]
 }

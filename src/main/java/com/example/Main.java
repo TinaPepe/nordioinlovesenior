@@ -87,26 +87,35 @@ public class Main {
     String token = readToken(request);
   
     try (Connection connection = dataSource.getConnection()) {    
-      PreparedStatement select = connection.prepareStatement("select id from profile where name =?");
-      select.setString(1, String.valueOf(formData.get("name").get(0)));
+      UUID id;
+
+      PreparedStatement select = connection.prepareStatement("select id from profile where code = ?");
+      select.setString(1, String.valueOf(formData.get("code").get(0)));
       ResultSet rs = select.executeQuery();
       if (rs.next()) {
-        UUID id = (UUID)rs.getObject("id");
+        id = (UUID)rs.getObject("id");
        
-        if (!id.toString().equals(token)) {
-           return "{ \"error\": \"" + formData.get("name").get(0) + " ha già partecipato!\"}";
+        PreparedStatement countStmt = connection.prepareStatement("select count(*) count from answer where profile_id = ?");
+        countStmt.setObject(1, id
+        );
+        ResultSet countrs = countStmt.executeQuery();
+        if (countrs.next()) {
+          int count = countrs.getInt("count");
+
+          if (count > 0) {
+           return "{ \"error\": \"" + formData.get("code").get(0) + " ha già partecipato!\"}";
+          }
         }
+        
+      } else {
+        return "{ \"error\": \"codice errato!\"}";
       }
     
    
-      PreparedStatement insert = connection.prepareStatement("insert into profile (id, name) values (?, ?)");
+      PreparedStatement insert = connection.prepareStatement("update profile set name = ? where id = ?");
       
-      UUID id = java.util.UUID.randomUUID();
-
-      insert.setObject(1, id);
-      insert.setString(2, String.valueOf(formData.get("name").get(0)));
-      insert.setString(2, String.valueOf(formData.get("code").get(0)));
-     
+      insert.setString(1, String.valueOf(formData.get("name").get(0)));
+      insert.setObject(2, id);
        
       insert.executeUpdate();
 
@@ -276,7 +285,7 @@ public class Main {
     List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name from profile order by created_on";
+      String query = "SELECT id, name from profile where name is not null order by created_on";
       String answersQuery = "SELECT question, answer from answer where profile_id = ?";
       try (Statement stmt = connection.createStatement()) {
         PreparedStatement answersStmt = connection.prepareStatement(answersQuery);
@@ -322,7 +331,7 @@ public class Main {
     List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, code, name, preferences from profile order by name";
+      String query = "SELECT id, code, name, preferences from profile where name is not null order by name";
       try (Statement stmt = connection.createStatement()) {
         ResultSet rs = stmt.executeQuery(query);
         while (rs.next()) {
@@ -360,7 +369,7 @@ public class Main {
                 method=RequestMethod.POST, consumes="application/json")
   String importCodes(@RequestBody String codesString) throws Exception {  
 
-    String[] codes = codesString.split(" ");
+    String[] codes = codesString.split("\\s+");
     System.out.println("codes " + codes);
 
     try (Connection connection = dataSource.getConnection()) {    
