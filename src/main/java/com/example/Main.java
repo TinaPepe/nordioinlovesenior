@@ -288,7 +288,7 @@ public class Main {
     List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name from profile where name is not null order by created_on";
+      String query = "SELECT id, name from profile where name is not null and code != 'test' order by created_on";
       String answersQuery = "SELECT question, answer from answer where profile_id = ?";
       try (Statement stmt = connection.createStatement()) {
         PreparedStatement answersStmt = connection.prepareStatement(answersQuery);
@@ -334,7 +334,7 @@ public class Main {
     List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, code, name, preferences from profile where name is not null order by name";
+      String query = "SELECT id, code, name, preferences from profile where name is not null and code != 'test' order by name";
       try (Statement stmt = connection.createStatement()) {
         ResultSet rs = stmt.executeQuery(query);
         while (rs.next()) {
