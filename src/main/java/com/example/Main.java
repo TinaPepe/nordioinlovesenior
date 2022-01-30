@@ -88,25 +88,28 @@ public class Main {
   
     try (Connection connection = dataSource.getConnection()) {    
       UUID id;
+      String code = formData.get("code").get(0);
 
       PreparedStatement select = connection.prepareStatement("select id from profile where code = ?");
-      select.setString(1, String.valueOf(formData.get("code").get(0)));
+      select.setString(1, code);
+
       ResultSet rs = select.executeQuery();
       if (rs.next()) {
         id = (UUID)rs.getObject("id");
        
-        PreparedStatement countStmt = connection.prepareStatement("select count(*) count from answer where profile_id = ?");
-        countStmt.setObject(1, id
-        );
-        ResultSet countrs = countStmt.executeQuery();
-        if (countrs.next()) {
-          int count = countrs.getInt("count");
+        if (!"test".equals("code")) {
+          PreparedStatement countStmt = connection.prepareStatement("select count(*) count from answer where profile_id = ?");
+          countStmt.setObject(1, id);
 
-          if (count > 0) {
-           return "{ \"error\": \"" + formData.get("code").get(0) + " ha già partecipato!\"}";
+          ResultSet countrs = countStmt.executeQuery();
+          if (countrs.next()) {
+            int count = countrs.getInt("count");
+
+            if (count > 0) {
+            return "{ \"error\": \"" + code + " ha già partecipato!\"}";
+            }
           }
         }
-        
       } else {
         return "{ \"error\": \"codice errato!\"}";
       }
