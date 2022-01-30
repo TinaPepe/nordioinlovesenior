@@ -64,10 +64,11 @@ public class Main {
       System.out.println("-------- MIGRATE --------- ");
       try (Connection connection = dataSource.getConnection()) {
         Statement stmt = connection.createStatement();
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS profile (id uuid, name varchar, preferences varchar, created_on timestamp DEFAULT NOW());");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS profile (id uuid, name varchar, code varchar, preferences varchar, created_on timestamp DEFAULT NOW());");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS answer (profile_id uuid, question varchar, answer varchar, created_on timestamp DEFAULT NOW());");
         stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_profile ON profile(id)");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_profile_name ON profile(name)");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_code ON profile(code)");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_answer ON answer(profile_id, question)");
         System.out.println("-------- MIGRATE END --------- ");
       } catch(Exception e) {
@@ -104,6 +105,8 @@ public class Main {
 
       insert.setObject(1, id);
       insert.setString(2, String.valueOf(formData.get("name").get(0)));
+      insert.setString(2, String.valueOf(formData.get("code").get(0)));
+     
        
       insert.executeUpdate();
 
@@ -217,7 +220,7 @@ public class Main {
       }
     }
 
-    System.out.println(candidates.size() + " candidates for " + profile.id + ", gender preferences: " + profile.genderPreference);
+    System.out.println(candidates.size() + " candidates for " + profile.id);
 
 
     List<Score> scores = new ArrayList<>();
@@ -231,8 +234,7 @@ public class Main {
 
     for(UUID candidateId : candidateList) {
       Profile candidate = candidates.get(candidateId);
-      System.out.println(candidate.id + " has gender " + candidate.gender);
-
+   
       if(candidate.id != profile.id) {
      
         Score score = new Score();
@@ -254,7 +256,7 @@ public class Main {
       candidate.chosen += 1;
     }
 
-    profile.preferences = preferences.stream().map(s -> s.Name + " (" + s.score + ")").collect(Collectors.toList()).toString();
+    profile.preferences = preferences.stream().map(s -> s.profileName + " (" + s.score + ")").collect(Collectors.toList()).toString();
 
     try (Connection connection = dataSource.getConnection()) {    
       PreparedStatement update = connection.prepareStatement("update profile set preferences = ? where id = ?");
@@ -320,12 +322,13 @@ public class Main {
     List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name, preferences from profile order by name";
+      String query = "SELECT id, code, name, preferences from profile order by name";
       try (Statement stmt = connection.createStatement()) {
         ResultSet rs = stmt.executeQuery(query);
         while (rs.next()) {
           Profile profile = new Profile();
           profile.id = (UUID)rs.getObject("id");
+          profile.code = rs.getString("code");
           profile.name = rs.getString("name");
           profile.preferences = rs.getString("preferences");
           if (profile.preferences == null) {
@@ -351,6 +354,33 @@ public class Main {
                 method=RequestMethod.GET)
   String maintenance() throws Exception {
     return "maintenance";
+  }
+
+  @RequestMapping(value="/admin/codes",
+                method=RequestMethod.POST, consumes="application/json")
+  String importCodes(@RequestBody String codesString) throws Exception {  
+
+    String[] codes = codesString.split(" ");
+    System.out.println("codes " + codes);
+
+    try (Connection connection = dataSource.getConnection()) {    
+      PreparedStatement insert = connection.prepareStatement("insert into profile (id, code) values (?, ?)");
+      
+      for(String code : codes) {
+        UUID id = java.util.UUID.randomUUID();
+
+        insert.setObject(1, id);
+        insert.setString(2, code);
+       
+        insert.executeUpdate();
+      }
+
+      return "index";
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+
+    return "index";
   }
   
 

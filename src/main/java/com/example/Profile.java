@@ -5,6 +5,7 @@ import java.util.HashMap;
 
 class Profile {
     public java.util.UUID id;
+    public String code;
     public String name;
     public String preferences;
     public int chosen = 0;

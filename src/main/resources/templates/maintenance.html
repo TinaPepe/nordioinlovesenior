@@ -1,13 +1,21 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" th:replace="~{fragments/layout :: layout (~{::body},'index')}">
-<title>Nordio in love</title>
+<title>Nordio in love senior</title>
 <body>
 
 <button id="migrate">MIGRATE</button>
-<button id="reset">RESET</button>
-  
+<!--<button id="reset">RESET</button>-->
+
+<div>
+  <p>Codes (space separated)</p>
+  <textarea rows="20" cols="80" id="codes"></textarea>
+</div>
+<div>
+  <button id="import">IMPORT CODES</button>
+</div>
+
 <script>
-    document.getElementById('reset').addEventListener('click', () => {
+   /* document.getElementById('reset').addEventListener('click', () => {
       event.preventDefault();
       event.stopPropagation();
       if(confirm("Reset db?")){
@@ -23,7 +31,7 @@
         }
         xhr.send("");
       }
-    });
+    }); */
 
     document.getElementById('migrate').addEventListener('click', () => {
       event.preventDefault();
@@ -39,6 +47,23 @@
           }
         }
         xhr.send("");
+     });
+
+     document.getElementById('import').addEventListener('click', () => {
+      event.preventDefault();
+      event.stopPropagation();
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", '/admin/codes', true);
+
+        //xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+        xhr.onreadystatechange = function() { // Call a function when the state changes.
+          if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+            alert('imported!');
+          }
+        }
+        xhr.send(document.getElementById("codes").value);
      });
 </script>
 </body>
