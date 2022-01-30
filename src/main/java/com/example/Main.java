@@ -392,7 +392,7 @@ public class Main {
     return "index";
   }
   
-
+/*
   @RequestMapping(value="/admin/reset",
                 method=RequestMethod.POST)
   String reset() throws Exception {  
@@ -412,6 +412,7 @@ public class Main {
     
     return "index";
   }
+*/
 
   @RequestMapping(value="/admin/migrate",
                 method=RequestMethod.POST)
