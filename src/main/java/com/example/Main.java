@@ -64,11 +64,11 @@ public class Main {
       System.out.println("-------- MIGRATE --------- ");
       try (Connection connection = dataSource.getConnection()) {
         Statement stmt = connection.createStatement();
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS student (id uuid, name varchar, preferences varchar, created_on timestamp DEFAULT NOW());");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS answer (student_id uuid, question varchar, answer varchar, created_on timestamp DEFAULT NOW());");
-        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_student ON student(id)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_student_name ON student(name)");
-        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_answer ON answer(student_id, question)");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS profile (id uuid, name varchar, preferences varchar, created_on timestamp DEFAULT NOW());");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS answer (profile_id uuid, question varchar, answer varchar, created_on timestamp DEFAULT NOW());");
+        stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_profile ON profile(id)");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_profile_name ON profile(name)");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_answer ON answer(profile_id, question)");
         System.out.println("-------- MIGRATE END --------- ");
       } catch(Exception e) {
         e.printStackTrace();
@@ -76,17 +76,17 @@ public class Main {
     //}
   }
  
-  @RequestMapping(value="/student",
+  @RequestMapping(value="/profile",
                 method=RequestMethod.POST,
                 consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
                 produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  String createStudent(@RequestBody MultiValueMap<String, String> formData, HttpServletRequest request) throws Exception {
+  String create(@RequestBody MultiValueMap<String, String> formData, HttpServletRequest request) throws Exception {
 
     String token = readToken(request);
   
     try (Connection connection = dataSource.getConnection()) {    
-      PreparedStatement select = connection.prepareStatement("select id from student where name =?");
+      PreparedStatement select = connection.prepareStatement("select id from profile where name =?");
       select.setString(1, String.valueOf(formData.get("name").get(0)));
       ResultSet rs = select.executeQuery();
       if (rs.next()) {
@@ -98,7 +98,7 @@ public class Main {
       }
     
    
-      PreparedStatement insert = connection.prepareStatement("insert into student (id, name) values (?, ?)");
+      PreparedStatement insert = connection.prepareStatement("insert into profile (id, name) values (?, ?)");
       
       UUID id = java.util.UUID.randomUUID();
 
@@ -117,7 +117,7 @@ public class Main {
 
     System.out.println("token: " + token);
 
-    model.put("student_id", token);
+    model.put("profile_id", token);
      
     return "questions";
   }
@@ -147,49 +147,49 @@ public class Main {
 
     System.out.println("token: " + token);
 
-    UUID studentId = UUID.fromString(token);
+    UUID profileId = UUID.fromString(token);
 
     try (Connection connection = dataSource.getConnection()) {
       
 
-      PreparedStatement select = connection.prepareStatement("select * from answer where student_id = ? and question = ?");
+      PreparedStatement select = connection.prepareStatement("select * from answer where profile_id = ? and question = ?");
       
-      PreparedStatement insert = connection.prepareStatement("insert into answer (student_id, question, answer) values (?, ?, ?)");
+      PreparedStatement insert = connection.prepareStatement("insert into answer (profile_id, question, answer) values (?, ?, ?)");
 
-      PreparedStatement update = connection.prepareStatement("update answer set answer = ? where student_id = ? and question = ?");
+      PreparedStatement update = connection.prepareStatement("update answer set answer = ? where profile_id = ? and question = ?");
     
       formData.keySet().stream().filter(k -> k.startsWith("q")).forEach(question -> {
         try {
           String answer = formData.get(question).toString();
 
-          select.setObject(1, studentId);
+          select.setObject(1, profileId);
           select.setString(2, question);
      
           ResultSet rs = select.executeQuery();
 
           if (rs.next()) {
             update.setString(1, answer);
-            update.setObject(2, studentId);
+            update.setObject(2, profileId);
             update.setString(3, question);
 
             update.executeUpdate();
 
-            System.out.println("UPDATE " + studentId + " answered " +  answer + " to " + question);
+            System.out.println("UPDATE " + profileId + " answered " +  answer + " to " + question);
           } else {      
-            insert.setObject(1, studentId);
+            insert.setObject(1, profileId);
             insert.setString(2, question);
             insert.setString(3, answer);
 
             insert.executeUpdate();
 
-            System.out.println("INSERT " + studentId + " answered " +  answer + " to " + question);
+            System.out.println("INSERT " + profileId + " answered " +  answer + " to " + question);
           }
         } catch (SQLException e) {
           e.printStackTrace();
         }
       });
 
-      return "{ \"redirectUrl\": \"/bye\", \"token\": \"" + studentId.toString() + "\"}";
+      return "{ \"redirectUrl\": \"/bye\", \"token\": \"" + profileId.toString() + "\"}";
     }
   }
 
@@ -198,26 +198,26 @@ public class Main {
     return "bye";
   }
 
-  Integer calcScore(Student student, Student candidate) {
+  Integer calcScore(Profile profile, Profile candidate) {
     Integer score = candidate.answers.size();
 
-    for(String q : student.answers.keySet()) {
+    for(String q : profile.answers.keySet()) {
         String candidateA = candidate.answers.get(q);
-        if(student.answers.get(q).equals(candidateA)) {
+        if(profile.answers.get(q).equals(candidateA)) {
           score += 10;
         }
     }
     return score;
   }
 
-  void buildPreferences(Student student,  Map<UUID, Student> candidates) throws Exception {
+  void buildPreferences(Profile profile,  Map<UUID, Profile> candidates) throws Exception {
     class SortByScore implements Comparator<Score> {
       public int compare(Score a, Score b) {
           return b.score - a.score;
       }
     }
 
-    System.out.println(candidates.size() + " candidates for " + student.id + ", gender preferences: " + student.genderPreference);
+    System.out.println(candidates.size() + " candidates for " + profile.id + ", gender preferences: " + profile.genderPreference);
 
 
     List<Score> scores = new ArrayList<>();
@@ -230,38 +230,37 @@ public class Main {
 
 
     for(UUID candidateId : candidateList) {
-      Student candidate = candidates.get(candidateId);
+      Profile candidate = candidates.get(candidateId);
       System.out.println(candidate.id + " has gender " + candidate.gender);
 
-      if(candidate.id != student.id) {
+      if(candidate.id != profile.id) {
      
         Score score = new Score();
 
-        score.studentId = candidate.id;
-        score.studentName = candidate.name;
-        score.studentClass = candidate.schoolClass;
-        score.score = calcScore(student, candidate);
+        score.profileId = candidate.id;
+        score.profileName = candidate.name;
+        score.score = calcScore(profile, candidate);
         score.score -= candidate.chosen;
       
         scores.add(score);
       }
     }
 
-    System.out.println("Found " + scores.size() + " preferences for " + student.id);
+    System.out.println("Found " + scores.size() + " preferences for " + profile.id);
 
     List<Score> preferences = scores.stream().sorted(new SortByScore()).limit(3).collect(Collectors.toList());
     for(Score p : preferences) {
-      Student candidate = candidates.get(p.studentId);
+      Profile candidate = candidates.get(p.profileId);
       candidate.chosen += 1;
     }
 
-    student.preferences = preferences.stream().map(s -> s.studentName + " " + s.studentClass + " (" + s.score + ")").collect(Collectors.toList()).toString();
+    profile.preferences = preferences.stream().map(s -> s.Name + " (" + s.score + ")").collect(Collectors.toList()).toString();
 
     try (Connection connection = dataSource.getConnection()) {    
-      PreparedStatement update = connection.prepareStatement("update student set preferences = ? where id = ?");
+      PreparedStatement update = connection.prepareStatement("update profile set preferences = ? where id = ?");
   
-      update.setObject(1, student.preferences);
-      update.setObject(2, student.id);
+      update.setObject(1, profile.preferences);
+      update.setObject(2, profile.id);
          
       update.executeUpdate();
     } catch(Exception e) {
@@ -272,79 +271,79 @@ public class Main {
   @RequestMapping(value="/admin/build-preferences",
                 method=RequestMethod.POST)
   String buildPreferences() throws Exception {
-    List<Student> students = new ArrayList<Student>();
+    List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name from student order by created_on";
-      String answersQuery = "SELECT question, answer from answer where student_id = ?";
+      String query = "SELECT id, name from profile order by created_on";
+      String answersQuery = "SELECT question, answer from answer where profile_id = ?";
       try (Statement stmt = connection.createStatement()) {
         PreparedStatement answersStmt = connection.prepareStatement(answersQuery);
         ResultSet rs = stmt.executeQuery(query);
         while (rs.next()) {
-          Student student = new Student();
-          student.id = (UUID)rs.getObject("id");
-          student.name = rs.getString("name");
+          Profile profile = new Profile();
+          profile.id = (UUID)rs.getObject("id");
+          profile.name = rs.getString("name");
        
-          answersStmt.setObject(1, student.id);
+          answersStmt.setObject(1, profile.id);
 
           ResultSet answersRs = answersStmt.executeQuery();
           while (answersRs.next()) {
             String q = answersRs.getString("question");
             String a = answersRs.getString("answer");
 
-            student.answers.put(q, a);
+            profile.answers.put(q, a);
           }
 
-          students.add(student);
+          profiles.add(profile);
         }
       }
     } catch(Exception e) {
       e.printStackTrace();
     }
 
-    Map<UUID, Student> candidates = new HashMap<UUID, Student>();
-    for(Student student: students) {
-      candidates.put(student.id, student);
+    Map<UUID, Profile> candidates = new HashMap<UUID, Profile>();
+    for(Profile profile: profiles) {
+      candidates.put(profile.id, profile);
     }
   
-   for(Student student: students) {
-      buildPreferences(student, candidates);
+   for(Profile profile: profiles) {
+      buildPreferences(profile, candidates);
    }
  
-    return "students";
+    return "profiles";
   }
 
 
-  @RequestMapping(value="/admin/students",
+  @RequestMapping(value="/admin/profiles",
                 method=RequestMethod.GET)
-  String getStudents(Map<String, Object> model) throws Exception {
-    List<Student> students = new ArrayList<Student>();
+  String getProfiles(Map<String, Object> model) throws Exception {
+    List<Profile> profiles = new ArrayList<Profile>();
 
     try (Connection connection = dataSource.getConnection()) {
-      String query = "SELECT id, name, preferences from student order by name";
+      String query = "SELECT id, name, preferences from profile order by name";
       try (Statement stmt = connection.createStatement()) {
         ResultSet rs = stmt.executeQuery(query);
         while (rs.next()) {
-          Student student = new Student();
-          student.id = (UUID)rs.getObject("id");
-          student.name = rs.getString("name");
-          student.preferences = rs.getString("preferences");
-          if (student.preferences == null) {
-            student.preferences = "?";
+          Profile profile = new Profile();
+          profile.id = (UUID)rs.getObject("id");
+          profile.name = rs.getString("name");
+          profile.preferences = rs.getString("preferences");
+          if (profile.preferences == null) {
+            profile.preferences = "?";
           }
-          students.add(student);
+          profiles.add(profile);
         }
       }
     } catch(Exception e) {
       e.printStackTrace();
     }
 
-    model.put("students", students);
+    model.put("profiles", profiles);
 
 
-    System.out.println("Found " + students.size() +  " students");
+    System.out.println("Found " + profiles.size() +  " profiles");
 
-    return "students";
+    return "profiles";
   }
 
 
@@ -361,10 +360,10 @@ public class Main {
     System.out.println("RESET!!!!");
     try (Connection connection = dataSource.getConnection()) {
       Statement stmt = connection.createStatement();
-      stmt.executeUpdate("DROP TABLE IF EXISTS student;");
+      stmt.executeUpdate("DROP TABLE IF EXISTS profile;");
       stmt.executeUpdate("DROP TABLE IF EXISTS answer;");
-      stmt.executeUpdate("DROP INDEX IF EXISTS idx_student");
-      stmt.executeUpdate("DROP INDEX IF EXISTS idx_student_name");
+      stmt.executeUpdate("DROP INDEX IF EXISTS idx_profile");
+      stmt.executeUpdate("DROP INDEX IF EXISTS idx_profile_name");
       stmt.executeUpdate("DROP INDEX IF EXISTS idx_answer");
     } catch(Exception e) {
       e.printStackTrace();

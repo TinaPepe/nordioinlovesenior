@@ -3,8 +3,7 @@ package com.example;
 import java.util.UUID;
 
 class Score {
-    UUID studentId;
-    String studentName;
-    String studentClass;
+    UUID profileId;
+    String profileName;
     Integer score;
 }

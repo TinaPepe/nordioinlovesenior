@@ -4,10 +4,10 @@
 <body>
 
   <table class="container">
-    <tr th:each="student : ${students}">
-      <td th:text="${student.id}"/>
-      <td th:text="${student.name}"/>
-      <td th:text="${student.preferences}"/>
+    <tr th:each="profile : ${profiles}">
+      <td th:text="${profile.id}"/>
+      <td th:text="${profile.name}"/>
+      <td th:text="${profile.preferences}"/>
     </tr>
   </table>
 

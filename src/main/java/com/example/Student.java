@@ -3,7 +3,7 @@ package com.example;
 import java.util.Map;
 import java.util.HashMap;
 
-class Student {
+class Profile {
     public java.util.UUID id;
     public String name;
     public String preferences;
